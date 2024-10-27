@@ -4,6 +4,7 @@
 
 const char kWindowTitle[] = "LE2C_27_リ_ヨン_MT4";
 
+
 struct Vector3 {
 	float x, y, z;
 };
