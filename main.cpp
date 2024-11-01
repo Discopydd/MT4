@@ -15,7 +15,9 @@ struct Matrix4x4 {
 
 float Dot(const Vector3& v1, const Vector3& v2) { return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z; }
 float Length(const Vector3& v) { return std::sqrt(Dot(v, v)); }
-
+Vector3 Cross(const Vector3& v1, const Vector3& v2) {
+	return { v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x };
+}
 
 Vector3 Normalize(const Vector3& v) {
 	float length = Length(v);
@@ -23,28 +25,43 @@ Vector3 Normalize(const Vector3& v) {
 	return { v.x / length, v.y / length, v.z / length };
 }
 
-Matrix4x4 MakeRotateAxisAngle(const Vector3& axis, float angle) {
+Matrix4x4 DirectionToDirection(const Vector3& from, const Vector3& to) {
+    Vector3 cross = Cross(from, to);
+   float cos = Dot(from, to);
 
-	 Vector3 n = Normalize(axis);
-	//資料p20を参考に中身を埋める。nはaxisのこと
-	float cos = std::cos(angle);
-	float sin = std::sin(angle);
-	float MinusCos = 1.0f - cos;
+	float sin = Length(cross);
+    
+    float epsilon = 1e-6f;
+    Vector3 axis = {};
+    if (std::abs(cos + 1.0f) <= epsilon) {
+        if (std::abs(from.x) > epsilon || std::abs(from.y) > epsilon) {
+            axis = { -from.y, from.x, 0.0f }; 
+        }
+        else {
+            axis = { from.z, 0.0f, -from.x }; 
+        }
+        axis = Normalize(axis);
+    }
+    else {
+        axis = Normalize(cross);
+    }
 
-	Matrix4x4 rotateMatrix = {};
-    rotateMatrix.m[0][0] = cos + n.x * n.x * MinusCos;
-    rotateMatrix.m[0][1] = n.x * n.y * MinusCos + n.z * sin;
-    rotateMatrix.m[0][2] = n.x * n.z * MinusCos - n.y * sin;
+    float k = 1.0f - cos;
+    Matrix4x4 rotateMatrix = {};
+    
+    rotateMatrix.m[0][0] = cos + axis.x * axis.x * k;
+    rotateMatrix.m[0][1] = axis.x * axis.y * k + axis.z * sin;
+    rotateMatrix.m[0][2] = axis.x * axis.z * k - axis.y * sin;
     rotateMatrix.m[0][3] = 0.0f;
 
-    rotateMatrix.m[1][0] = n.y * n.x * MinusCos - n.z * sin;
-    rotateMatrix.m[1][1] = cos + n.y * n.y * MinusCos;
-    rotateMatrix.m[1][2] = n.y * n.z * MinusCos + n.x * sin;
+    rotateMatrix.m[1][0] = axis.y * axis.x * k - axis.z * sin;
+    rotateMatrix.m[1][1] = cos + axis.y * axis.y * k;
+    rotateMatrix.m[1][2] = axis.y * axis.z * k + axis.x * sin;
     rotateMatrix.m[1][3] = 0.0f;
 
-    rotateMatrix.m[2][0] = n.z * n.x * MinusCos + n.y * sin;
-    rotateMatrix.m[2][1] = n.z * n.y * MinusCos - n.x * sin;
-    rotateMatrix.m[2][2] = cos + n.z * n.z * MinusCos;
+    rotateMatrix.m[2][0] = axis.z * axis.x * k + axis.y * sin;
+    rotateMatrix.m[2][1] = axis.z * axis.y * k - axis.x * sin;
+    rotateMatrix.m[2][2] = cos + axis.z * axis.z * k;
     rotateMatrix.m[2][3] = 0.0f;
 
     rotateMatrix.m[3][0] = 0.0f;
@@ -52,8 +69,9 @@ Matrix4x4 MakeRotateAxisAngle(const Vector3& axis, float angle) {
     rotateMatrix.m[3][2] = 0.0f;
     rotateMatrix.m[3][3] = 1.0f;
 
-	return rotateMatrix;
+    return rotateMatrix;
 }
+
 
 static const int kRowHeight = 20;
 static const int kColumnWidth = 60;
@@ -81,6 +99,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	char keys[256] = { 0 };
 	char preKeys[256] = { 0 };
 
+	Vector3 v1{ 1.0f, 3.0f, -5.0f };
+	Vector3 v2{ 4.0f, -1.0f, 2.0f };
+
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
 		// フレームの開始
@@ -94,9 +115,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓更新処理ここから
 		///
 
-		Vector3 axis = Normalize(Vector3{ 1.0f, 1.0f, 1.0f });
-		float angle = 0.44f;
-		Matrix4x4 rotateMatrix = MakeRotateAxisAngle(axis, angle);
+		Vector3 from0 = Normalize(Vector3{ 1.0f, 0.7f, 0.5f });
+		Vector3 to0 = { -from0.x,-from0.y, -from0.z };
+		Vector3 from1 = Normalize(Vector3{ -0.6f, 0.9f, 0.2f });
+		Vector3 to1 = Normalize(Vector3{ 0.4f, 0.7f, -0.5f });
+		Matrix4x4 rotateMatrix0 = DirectionToDirection(
+			Normalize(Vector3{ 1.0f, 0.0f, 0.0f }), Normalize(Vector3{ -1.0f, 0.0f, 0.0f }));
+		Matrix4x4 rotateMatrix1 = DirectionToDirection(from0, to0);
+		Matrix4x4 rotateMatrix2 = DirectionToDirection(from1, to1);
+
 
 		///
 		/// ↑更新処理ここまで
@@ -106,7 +133,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓描画処理ここから
 		///
 
-		MatrixScreenPrintf(0, 0, rotateMatrix, "rotateMatrix");
+		MatrixScreenPrintf(0, 0, rotateMatrix0, "rotateMatrix0");
+		MatrixScreenPrintf(0, kRowHeight * 5, rotateMatrix1, "rotateMatrix1");
+		MatrixScreenPrintf(0, kRowHeight * 10, rotateMatrix2, "rotateMatrix2");
 
 		///
 		/// ↑描画処理ここまで
