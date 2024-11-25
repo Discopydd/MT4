@@ -31,6 +31,7 @@ Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix) {
     return result;
 }
 
+
 Quaternion MakeRotateAxisAngleQuaternion(const Vector3& axis, float angle) {
 	 Vector3 normalizedAxis = Normalize(axis);
     float halfAngle = angle * 0.5f;
