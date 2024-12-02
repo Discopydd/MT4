@@ -1,7 +1,7 @@
 #include <Novice.h>
 #include <cmath>
 
-const char kWindowTitle[] = "MT4_01_04_Basic";
+const char kWindowTitle[] = "MT4_01_05";
 
 struct Vector3 {
 	float x, y, z;
@@ -118,6 +118,46 @@ void MatrixScreenPrintf(int x, int y, const Matrix4x4& matrix, const char* label
 	}
 }
 
+Quaternion Slerp(const Quaternion& q0, const Quaternion& q1, float t) {
+    // 内積を計算
+    float dot = q0.x * q1.x + q0.y * q1.y + q0.z * q1.z + q0.w * q1.w;
+
+    // q0 と q1 の内積が負の場合、q0 を反転させる
+    Quaternion q1Adjusted = q1;
+    if (dot < 0.0f) {
+        q1Adjusted.x = -q1.x;
+        q1Adjusted.y = -q1.y;
+        q1Adjusted.z = -q1.z;
+        q1Adjusted.w = -q1.w;
+        dot = -dot;
+    }
+
+    // もし内積がほぼ1なら、線形補間を行う
+    if (dot > 0.9995f) {
+        return {
+            q0.x + t * (q1Adjusted.x - q0.x),
+            q0.y + t * (q1Adjusted.y - q0.y),
+            q0.z + t * (q1Adjusted.z - q0.z),
+            q0.w + t * (q1Adjusted.w - q0.w)
+        };
+    }
+
+    // θ = acos(dot)
+    float theta = std::acos(dot);
+    float sinTheta = std::sin(theta);
+
+    // スケールファクターの計算
+    float scale0 = std::sin((1.0f - t) * theta) / sinTheta;
+    float scale1 = std::sin(t * theta) / sinTheta;
+
+    // 補間されたクォータニオンを計算
+    return {
+        scale0 * q0.x + scale1 * q1Adjusted.x,
+        scale0 * q0.y + scale1 * q1Adjusted.y,
+        scale0 * q0.z + scale1 * q1Adjusted.z,
+        scale0 * q0.w + scale1 * q1Adjusted.w
+    };
+}
 void VectorScreenPrintf(int x, int y, const Vector3& vector, const char* label) {
 	Novice::ScreenPrintf(x, y, "%.02f", vector.x);
 	Novice::ScreenPrintf(x + kColumnWidth, y, "%.02f", vector.y);
@@ -170,16 +210,21 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓描画処理ここから
 		///
 
-		Quaternion rotation = MakeRotateAxisAngleQuaternion(Normalize(Vector3{ 1.0f, 0.4f, -0.2f }), 0.45f);
-		Vector3 pointY = { 2.1f, -0.9f, 1.3f };
-		Matrix4x4 rotateMatrix = MakeRotateMatrix(rotation);
-		Vector3 rotateByQuaternion = RotateVector(pointY, rotation);
-		Vector3 rotateByMatrix = Transform(pointY, rotateMatrix);
+		Quaternion q0 = MakeRotateAxisAngleQuaternion({0.71f, 0.71f, 0.0f}, 0.3f);
+		Quaternion q1 = MakeRotateAxisAngleQuaternion({ 0.71f, 0.0f, 0.71f }, 3.141592f);
 
-		QuaternionScreenPrintf(0, kRowHeight * 0, rotation, "   : rotation");
-		MatrixScreenPrintf(0, kRowHeight * 1, rotateMatrix, "rotateMatrix");
-		VectorScreenPrintf(0, kRowHeight * 6, rotateByQuaternion, "   : rotateByQuaternion");
-		VectorScreenPrintf(0, kRowHeight * 7, rotateByMatrix, "   : rotateByMatrix");
+		Quaternion interpolated0 = Slerp(q0, q1, 0.0f);
+		Quaternion interpolated1 = Slerp(q0, q1, 0.3f);
+		Quaternion interpolated2 = Slerp(q0, q1, 0.5f);
+		Quaternion interpolated3 = Slerp(q0, q1, 0.7f);
+		Quaternion interpolated4 = Slerp(q0, q1, 1.0f);
+
+		QuaternionScreenPrintf(0, 20 * 0, interpolated0, "   : interpolated0");
+		QuaternionScreenPrintf(0, 20 * 1, interpolated1, "   : interpolated1");
+		QuaternionScreenPrintf(0, 20 * 2, interpolated2, "   : interpolated2");
+		QuaternionScreenPrintf(0, 20 * 3, interpolated3, "   : interpolated3");
+		QuaternionScreenPrintf(0, 20 * 4, interpolated4, "   : interpolated4");
+
 
 		///
 		/// ↑描画処理ここまで
